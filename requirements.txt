@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pdfplumber
+nltk
+spacy
+chromadb
+sentence-transformers
+google-generativeai
+python-dotenv
