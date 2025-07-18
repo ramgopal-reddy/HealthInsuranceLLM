@@ -1,15 +1,20 @@
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+import google.generativeai as genai
+from dotenv import load_dotenv
 import os
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
 
-persist_dir = "chroma_store"
-embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+# Load .env file (for GOOGLE_API_KEY)
+load_dotenv()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def load_chunks_from_file(file_path):
+# Load the Google embedding model
+embedding_model = genai.embed_content
+
+def load_chunks(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
-    
+
     raw_chunks = content.split("--- Chunk ")
     chunks = []
     for chunk in raw_chunks[1:]:
@@ -17,29 +22,25 @@ def load_chunks_from_file(file_path):
         chunks.append(chunk_text.strip())
     return chunks
 
-def setup_chroma_collection(chunks):
-    chroma_client = chromadb.Client(Settings(
-        persist_directory=persist_dir,
-        anonymized_telemetry=False
-    ))
-
-    collection = chroma_client.get_or_create_collection("insurance_clauses")
-
-    embeddings = embedding_model.encode(chunks, show_progress_bar=True)
-
-    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        collection.add(
-            documents=[chunk],
-            metadatas=[{"source": f"chunk_{i}"}],
-            embeddings=[embedding.tolist()],
-            ids=[f"chunk_{i}"]
+def embed_chunks(chunks):
+    embeddings = []
+    for chunk in chunks:
+        res = embedding_model(
+            model="models/embedding-001",
+            content=chunk,
+            task_type="retrieval_document"
         )
-    return collection
+        embeddings.append(res['embedding'])
+    return np.array(embeddings)
 
-def query_clauses(collection, query):
-    query_embedding = embedding_model.encode(query)
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=5
-    )
-    return "\n\n".join(results["documents"][0])
+def get_top_k_similar_chunks(query, chunks, chunk_embeddings, k=5):
+    query_embedding = embedding_model(
+        model="models/embedding-001",
+        content=query,
+        task_type="retrieval_query"
+    )['embedding']
+
+    query_embedding = np.array(query_embedding).reshape(1, -1)
+    similarities = cosine_similarity(query_embedding, chunk_embeddings)[0]
+    top_indices = similarities.argsort()[::-1][:k]
+    return [chunks[i] for i in top_indices]
