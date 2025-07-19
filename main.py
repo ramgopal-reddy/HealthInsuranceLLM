@@ -83,6 +83,12 @@ class Query(BaseModel):
 CHUNKS = load_chunks("insurance_chunks.txt")
 CHUNK_EMBEDDINGS = embed_chunks(CHUNKS)
 
+# Root endpoint
+@app.get("/")
+@app.head("/")
+async def read_root():
+    return {"message": "API is working!"}
+
 @app.post("/analyze")
 def analyze_insurance(query: Query):
     try:
