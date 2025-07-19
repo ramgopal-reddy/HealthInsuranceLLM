@@ -6,11 +6,7 @@ import os
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Root endpoint
-@app.get("/")
-@app.head("/")
-async def read_root():
-    return {"message": "API is working!"}
+
 
 # Load environment variables
 load_dotenv()
@@ -82,6 +78,12 @@ You are a health insurance assistant. Based on the user query and the retrieved 
 # FastAPI app
 app = FastAPI(title="Insurance Assistant API")
 
+# Root endpoint
+@app.get("/")
+@app.head("/")
+async def read_root():
+    return {"message": "API is working!"}
+    
 class Query(BaseModel):
     user_query: str
 
